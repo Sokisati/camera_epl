@@ -22,7 +22,7 @@ class UDPConnection:
 class Camera:
     def __init__(self, fps, resolution):
         self.frameWidth = 640
-        self.frameHeigt = 480;
+        self.frameHeight = 480;
         self.resolution = resolution;
         
         self.camera = Picamera2()
