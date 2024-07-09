@@ -30,7 +30,7 @@ class Camera:
         self.camera.start()
         
         self.fps = fps
-        self.saveDirectory = "/home/pi/camera_footage"
+        self.saveDirectory = "/home/camera_footage"
         if not os.path.exists(self.saveDirectory):
             os.makedirs(self.saveDirectory)
         
