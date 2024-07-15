@@ -1,10 +1,11 @@
-from picamera import PiCamera
+from picamera2 import PiCamera  
 import io
 import time
 import socket
 import signal
 import sys
 from datetime import datetime
+import os  
 
 class UDPConnection:
     def __init__(self, targetIp, port):
@@ -24,7 +25,7 @@ class Camera:
         self.fps = fps
         
         self.camera = PiCamera()
-        self.camera.resolution = (640, 480)  # Adjust as needed
+        self.camera.resolution = (640, 480)  
         self.camera.framerate = fps
         
         self.saveDirectory = "/home/pi/camera_footage"
@@ -38,11 +39,11 @@ class Camera:
     
     def captureFrame(self):
         stream = io.BytesIO()
-        self.camera.capture(stream, format='jpeg')
+        self.camera.capture(stream, format='jpeg', use_video_port=True)  
         return stream.getvalue()
     
     def saveFrame(self, frame):
-        # Optionally save the frame locally if needed
+       
         pass
     
     def startStreaming(self, udpConnection):
@@ -58,7 +59,6 @@ class System:
         self.udpConnection = udpConnection
         self.camera = camera
         
-        # Set up signal handler for SIGINT (Ctrl+C)
         signal.signal(signal.SIGINT, self.cleanup)
     
     def cleanup(self, signum, frame):
