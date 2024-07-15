@@ -1,6 +1,6 @@
 import socket
 import time
-from picamera import PiCamera
+from picamera2 import PiCamera
 from PIL import Image
 import os
 import signal
