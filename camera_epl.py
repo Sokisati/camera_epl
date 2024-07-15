@@ -1,7 +1,7 @@
 import socket
 import time
-import cv2
 from picamera2 import Picamera2
+from PIL import Image
 import os
 import signal
 import sys
@@ -22,8 +22,8 @@ class UDPConnection:
 class Camera:
     def __init__(self, fps, resolution):
         self.frameWidth = 640
-        self.frameHeight = 480;
-        self.resolution = resolution;
+        self.frameHeight = 480
+        self.resolution = resolution
         
         self.camera = Picamera2()
         self.camera.configure(self.camera.create_preview_configuration(main={"size": (self.frameWidth, self.frameHeight)}))
@@ -35,21 +35,22 @@ class Camera:
             os.makedirs(self.saveDirectory)
         
         currentDateTime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.videoFilename = os.path.join(self.saveDirectory, f"{currentDateTime}_epl.avi")
+        self.videoFilename = os.path.join(self.saveDirectory, f"{currentDateTime}_epl.mp4")
         
-        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.out = cv2.VideoWriter(self.videoFilename, self.fourcc, self.fps, (self.frameWidth, self.frameHeight))
-    
+        self.ffmpeg_process = os.popen(
+            f"ffmpeg -y -f rawvideo -vcodec rawvideo -s {self.frameWidth}x{self.frameHeight} -pix_fmt rgb24 -r {self.fps} "
+            f"-i - -an -vcodec libx264 {self.videoFilename}", 'w')
+
     def captureFrame(self):
         frame = self.camera.capture_array()
         return frame
-    
+
     def saveFrame(self, frame):
-        self.out.write(frame)
-    
+        self.ffmpeg_process.write(frame.tobytes())
+
     def stop(self):
         self.camera.stop()
-        self.out.release()
+        self.ffmpeg_process.close()
 
 class System:
     def __init__(self, udpConnection, camera):
@@ -69,15 +70,13 @@ class System:
         try:
             while True:
                 frame = self.camera.captureFrame()
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                
-                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.camera.resolution]
-                _, buffer = cv2.imencode('.jpg', frame_bgr, encode_param)
+                image = Image.fromarray(frame)
+                buffer = image.tobytes()
                 
                 if len(buffer) <= 65507:
-                    self.udpConnection.send(buffer.tobytes())
+                    self.udpConnection.send(buffer)
                 
-                self.camera.saveFrame(frame_bgr)
+                self.camera.saveFrame(frame)
                 
                 time.sleep(1 / self.camera.fps)
         
@@ -86,9 +85,9 @@ class System:
 
 udp_ip = "192.168.138.243"
 udp_port = 5005
-    
+
 udpConnection = UDPConnection(udp_ip, udp_port)
 camera = Camera(fps=24, resolution=50)
-    
+
 system = System(udpConnection, camera)
 system.run()
