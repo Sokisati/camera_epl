@@ -1,11 +1,12 @@
 import socket
 import time
-from picamera2 import Picamera2
+from picamera import PiCamera
 from PIL import Image
 import os
 import signal
 import sys
 from datetime import datetime
+import numpy as np
 
 class UDPConnection:
     def __init__(self, targetIp, port):
@@ -25,12 +26,11 @@ class Camera:
         self.frameHeight = 480
         self.resolution = resolution
         
-        self.camera = Picamera2()
-        self.camera.configure(self.camera.create_preview_configuration(main={"size": (self.frameWidth, self.frameHeight)}))
-        self.camera.start()
+        self.camera = PiCamera()
+        self.camera.resolution = (self.frameWidth, self.frameHeight)
         
         self.fps = fps
-        self.saveDirectory = "/home/camera_footage"
+        self.saveDirectory = "/home/pi/camera_footage"  # Adjust this path as needed
         if not os.path.exists(self.saveDirectory):
             os.makedirs(self.saveDirectory)
         
@@ -39,18 +39,21 @@ class Camera:
         
         self.ffmpeg_process = os.popen(
             f"ffmpeg -y -f rawvideo -vcodec rawvideo -s {self.frameWidth}x{self.frameHeight} -pix_fmt rgb24 -r {self.fps} "
-            f"-i - -an -vcodec libx264 {self.videoFilename}", 'w')
-
+            f"-i - -an -vcodec libx264 {self.videoFilename}", 'wb')
+        
     def captureFrame(self):
-        frame = self.camera.capture_array()
+        frame = np.empty((self.frameHeight * self.frameWidth * 3,), dtype=np.uint8)
+        self.camera.capture(frame, 'rgb')
+        frame = frame.reshape((self.frameHeight, self.frameWidth, 3))
         return frame
 
     def saveFrame(self, frame):
-        self.ffmpeg_process.write(frame.tobytes())
+        self.ffmpeg_process.stdin.write(frame)
 
     def stop(self):
-        self.camera.stop()
-        self.ffmpeg_process.close()
+        self.camera.close()
+        self.ffmpeg_process.stdin.close()
+        self.ffmpeg_process.wait()
 
 class System:
     def __init__(self, udpConnection, camera):
@@ -76,7 +79,7 @@ class System:
                 if len(buffer) <= 65507:
                     self.udpConnection.send(buffer)
                 
-                self.camera.saveFrame(frame)
+                self.camera.saveFrame(buffer)
                 
                 time.sleep(1 / self.camera.fps)
         
@@ -87,7 +90,7 @@ udp_ip = "192.168.138.243"
 udp_port = 5005
 
 udpConnection = UDPConnection(udp_ip, udp_port)
-camera = Camera(fps=24, resolution=50)
+camera = Camera(fps=24, resolution="480p")
 
 system = System(udpConnection, camera)
 system.run()
