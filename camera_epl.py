@@ -1,11 +1,11 @@
-from picamera2 import PiCamera  
-import io
-import time
 import socket
+import time
+import cv2
+from picamera2 import Picamera2
+import os
 import signal
 import sys
 from datetime import datetime
-import os  
 
 class UDPConnection:
     def __init__(self, targetIp, port):
@@ -21,44 +21,42 @@ class UDPConnection:
 
 class Camera:
     def __init__(self, fps, resolution):
-        self.resolution = resolution
+        self.frameWidth = 640
+        self.frameHeight = 480;
+        self.resolution = resolution;
+        
+        self.camera = Picamera2()
+        self.camera.configure(self.camera.create_preview_configuration(main={"size": (self.frameWidth, self.frameHeight)}))
+        self.camera.start()
+        
         self.fps = fps
-        
-        self.camera = PiCamera()
-        self.camera.resolution = (640, 480)  
-        self.camera.framerate = fps
-        
-        self.saveDirectory = "/home/pi/camera_footage"
+        self.saveDirectory = "/home/camera_footage"
         if not os.path.exists(self.saveDirectory):
             os.makedirs(self.saveDirectory)
         
         currentDateTime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.videoFilename = os.path.join(self.saveDirectory, f"{currentDateTime}_epl.h264")
+        self.videoFilename = os.path.join(self.saveDirectory, f"{currentDateTime}_epl.avi")
         
-        self.udpConnection = None
+        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        self.out = cv2.VideoWriter(self.videoFilename, self.fourcc, self.fps, (self.frameWidth, self.frameHeight))
     
     def captureFrame(self):
-        stream = io.BytesIO()
-        self.camera.capture(stream, format='jpeg', use_video_port=True)  
-        return stream.getvalue()
+        frame = self.camera.capture_array()
+        return frame
     
     def saveFrame(self, frame):
-       
-        pass
-    
-    def startStreaming(self, udpConnection):
-        self.udpConnection = udpConnection
-        self.camera.start_recording(self.videoFilename)
+        self.out.write(frame)
     
     def stop(self):
-        self.camera.stop_recording()
-        self.camera.close()
+        self.camera.stop()
+        self.out.release()
 
 class System:
     def __init__(self, udpConnection, camera):
         self.udpConnection = udpConnection
         self.camera = camera
         
+        # Set up signal handler for SIGINT (Ctrl+C)
         signal.signal(signal.SIGINT, self.cleanup)
     
     def cleanup(self, signum, frame):
@@ -69,15 +67,17 @@ class System:
     
     def run(self):
         try:
-            self.camera.startStreaming(self.udpConnection)
-            
             while True:
                 frame = self.camera.captureFrame()
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 
-                if len(frame) <= 65507:
-                    self.udpConnection.send(frame)
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.camera.resolution]
+                _, buffer = cv2.imencode('.jpg', frame_bgr, encode_param)
                 
-                self.camera.saveFrame(frame)
+                if len(buffer) <= 65507:
+                    self.udpConnection.send(buffer.tobytes())
+                
+                self.camera.saveFrame(frame_bgr)
                 
                 time.sleep(1 / self.camera.fps)
         
