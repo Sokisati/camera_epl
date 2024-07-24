@@ -32,35 +32,21 @@ class Camera:
         self.fps = fps
         self.saveDirectory = "/home/camera_footage"
         
-
-        # if not os.path.exists(self.saveDirectory):
-        #     os.makedirs(self.saveDirectory)
-        
-        
-        # self.videoFilename = os.path.join(self.saveDirectory, f"{currentDateTime}_epl.avi")
-        
-        # self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        # self.out = cv2.VideoWriter(self.videoFilename, self.fourcc, self.fps, (self.frameWidth, self.frameHeight))
     
     def captureFrame(self):
         frame = self.camera.capture_array()
         return frame
     
-
-    # def saveFrame(self, frame):
-    #     self.out.write(frame)
     
     def stop(self):
         self.camera.stop()
 
-        # self.out.release()
 
 class System:
     def __init__(self, udpConnection, camera):
         self.udpConnection = udpConnection
         self.camera = camera
         
-        # Set up signal handler for SIGINT (Ctrl+C)
         signal.signal(signal.SIGINT, self.cleanup)
     
     def cleanup(self, signum, frame):
@@ -80,10 +66,7 @@ class System:
                 
                 if len(buffer) <= 65507:
                     self.udpConnection.send(buffer.tobytes())
-                
 
-                # self.camera.saveFrame(frame_bgr)
-                
                 time.sleep(1 / self.camera.fps)
         
         except KeyboardInterrupt:

@@ -22,15 +22,18 @@ class UDPConnection:
 class Camera:
     def __init__(self, fps, resolution):
         self.frameWidth = 640
-        self.frameHeight = 480;
-        self.resolution = resolution;
+        self.frameHeight = 480
+        self.resolution = resolution
         
         self.camera = Picamera2()
         self.camera.configure(self.camera.create_preview_configuration(main={"size": (self.frameWidth, self.frameHeight)}))
         self.camera.start()
         
         self.fps = fps
-        self.saveDirectory = "/home/camera_footage"
+        
+        # Use the script directory for the save path
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.saveDirectory = os.path.join(script_dir, "camera_footage")
         if not os.path.exists(self.saveDirectory):
             os.makedirs(self.saveDirectory)
         
