@@ -37,8 +37,10 @@ class Camera:
         if not os.path.exists(self.saveDirectory):
             os.makedirs(self.saveDirectory)
         
-        currentDateTime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.videoFilename = os.path.join(self.saveDirectory, f"{currentDateTime}_epl.avi")
+        currentDateTime = datetime.now().strftime("%d/%m/%Y_%H:%M:%S")
+        
+        safeDateTime = currentDateTime.replace('/', '-')
+        self.videoFilename = os.path.join(self.saveDirectory, f"{safeDateTime}_epl.avi")
         
         self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.out = cv2.VideoWriter(self.videoFilename, self.fourcc, self.fps, (self.frameWidth, self.frameHeight))
