@@ -76,7 +76,7 @@ udp_ip = "192.168.138.243"
 udp_port = 5005
     
 udpConnection = UDPConnection(udp_ip, udp_port)
-camera = Camera(fps=24, resolution=50)
+camera = Camera(fps=24, resolution=10)
     
 system = System(udpConnection, camera)
 system.run()
