@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>0eec586a-0b36-4223-98e4-f5caf08e931a</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>camera_epl.py</StartupFile>
+    <StartupFile>src\camera_epl.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,8 +22,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="camera_epl.py" />
-    <Compile Include="cam_test.py" />
+    <Compile Include="src\camera_epl.py" />
+    <Compile Include="src\cam_test.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="src\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
