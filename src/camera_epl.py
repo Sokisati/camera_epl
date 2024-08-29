@@ -6,8 +6,9 @@ from PIL import Image
 import signal
 import sys
 import threading
-import cv2
 import os
+import numpy as np
+import subprocess
 
 class UDPConnection:
     def __init__(self, targetIp, port):
@@ -53,26 +54,37 @@ class System:
         self.udpConnection = udpConnection
         self.camera = camera
         self.capture_interval = 1 / self.camera.fps
-        self.video_writer = None
         self.video_path = video_path
-        self.init_video_writer(video_path, resolution, fps)
+        self.temp_image_path = "/tmp/temp_frame.jpg"
+        self.ffmpeg_process = None
+        self.init_ffmpeg_writer(video_path, resolution, fps)
 
         signal.signal(signal.SIGINT, self.cleanup)
         self.timer = None
 
-    def init_video_writer(self, video_path, resolution, fps):
+    def init_ffmpeg_writer(self, video_path, resolution, fps):
         if not os.path.exists(os.path.dirname(video_path)):
             os.makedirs(os.path.dirname(video_path))
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use 'mp4v' for MP4 files
-        self.video_writer = cv2.VideoWriter(video_path, fourcc, fps, resolution)
+
+        # Initialize ffmpeg process
+        self.ffmpeg_process = subprocess.Popen([
+            'ffmpeg', '-y',
+            '-f', 'image2pipe',
+            '-vcodec', 'mjpeg',
+            '-r', str(fps),
+            '-s', f"{resolution[0]}x{resolution[1]}",
+            '-i', '-',  # input from stdin
+            video_path
+        ], stdin=subprocess.PIPE)
 
     def cleanup(self, signum, frame):
         print("Exiting gracefully...")
         if self.timer:
             self.timer.cancel()
         self.camera.stop()
-        if self.video_writer:
-            self.video_writer.release()
+        if self.ffmpeg_process:
+            self.ffmpeg_process.stdin.close()
+            self.ffmpeg_process.wait()
         self.udpConnection.close()
         sys.exit(0)
 
@@ -85,9 +97,9 @@ class System:
         image.save(buffer, format="JPEG", quality=10)
         image_data = buffer.getvalue()
 
-        # Convert PIL image to OpenCV format for video saving
-        open_cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        self.video_writer.write(open_cv_image)
+        # Write image to ffmpeg
+        if self.ffmpeg_process:
+            self.ffmpeg_process.stdin.write(image_data)
 
         print(f"Captured image of size: {len(image_data)} bytes")
 
@@ -104,7 +116,6 @@ class System:
 
     def run(self):
         self.capture_and_send()  # Start the capturing process
-
 
 udp_ip = '192.168.137.1'
 udp_port = 5005
